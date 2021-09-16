@@ -15,30 +15,15 @@
  
  */
 
-
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WebServer.h>
 #include <ArduinoJson.h>
+#include <bsec.h>
 
-#include "bsec.h"
+#include "main.h"
 
 #define POLLING_FREQUENCY 30
-
-// Helper functions declarations
-void setupWiFi(void);
-void setupBME680(void);
-void checkIaqSensorStatus(void);
-void errLeds(void);
-
-void setupRouting(void);
-void createJson(char *tag, float value, char *unit);
-void addJsonObject(char *tag, float value, char *unit);
-void readSensorData(void * parameter);
-
-void getSimpleReadings(void);
-void getAllReadings(void);
-void setupSensorDataPoller(void);
 
 const char* ssid     = "ssid";
 const char* password = "password";
@@ -69,7 +54,6 @@ void loop(){
     server.handleClient();
 }
 
-// Helper function definitions
 void setupWiFi(void) {
     // Connect to WiFi
 
@@ -227,7 +211,7 @@ void getAllReadings(void) {
     addJsonObject("humidity", calHum0, "%");
     addJsonObject("pressure", pressureO, "hPa");
     addJsonObject("iaq", iaqO, "score");
-    
+
     serializeJson(jsonDocument, buffer);
     server.send(200, "application/json", buffer);
 }
