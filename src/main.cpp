@@ -54,7 +54,7 @@ void loop(){
     server.handleClient();
 }
 
-void setupWiFi(void) {
+void setupWiFi() {
     // Connect to WiFi
 
     Serial.println();
@@ -75,7 +75,7 @@ void setupWiFi(void) {
     Serial.println(WiFi.localIP());
 }
 
-void setupBME680(void) {
+void setupBME680() {
     // Setup the BME 680
     
     Wire.begin();
@@ -106,7 +106,7 @@ void setupBME680(void) {
     Serial.println(output);
 }
 
-void checkIaqSensorStatus(void) {
+void checkIaqSensorStatus() {
     if (iaqSensor.status != BSEC_OK) {
         if (iaqSensor.status < BSEC_OK) {
             output = "BSEC error code : " + String(iaqSensor.status);
@@ -136,7 +136,7 @@ void errLeds() {
     // TODO Add led to indicate status of weather station.
 }
 
-void setupRouting(void) {
+void setupRouting() {
     server.on("/simple", getSimpleReadings);
     server.on("/all", getAllReadings);
 
@@ -182,7 +182,7 @@ void readSensorData(void * parameter) {
     }
 }
 
-void getSimpleReadings(void) {
+void getSimpleReadings() {
     jsonDocument.clear();
     
     addJsonObject("temperature", calTempO, "°C");
@@ -195,7 +195,7 @@ void getSimpleReadings(void) {
 }
 
 
-void getAllReadings(void) {
+void getAllReadings() {
     jsonDocument.clear();
     
     output = "Timestamp [ms], raw temperature [°C], pressure [hPa], raw relative humidity [%], gas [Ohm], IAQ, IAQ accuracy, temperature [°C], relative humidity [%], Static IAQ, CO2 equivalent, breath VOC equivalent";
@@ -216,7 +216,7 @@ void getAllReadings(void) {
     server.send(200, "application/json", buffer);
 }
 
-void setupSensorDataPoller(void) {
+void setupSensorDataPoller() {
     // Create this task. When this task delays (sleeps), other parts of program
     // can run.
     xTaskCreate(
