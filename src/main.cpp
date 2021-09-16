@@ -182,7 +182,7 @@ void readSensorData(void * parameter) {
         }
 
         rawTempO = iaqSensor.rawTemperature;
-        pressureO = iaqSensor.pressure / 1000.0;
+        pressureO = iaqSensor.pressure / 100.0;
         rawHumidityO = iaqSensor.rawHumidity;
         gasO = iaqSensor.gasResistance;
         iaqO = iaqSensor.iaq;
@@ -203,7 +203,7 @@ void getSimpleReadings(void) {
     
     addJsonObject("temperature", calTempO, "°C");
     addJsonObject("humidity", calHum0, "%");
-    addJsonObject("pressure", pressureO, "KhPa");
+    addJsonObject("pressure", pressureO, "hPa");
     addJsonObject("iaq", iaqO, "score");
     
     serializeJson(jsonDocument, buffer);
@@ -225,7 +225,7 @@ void getAllReadings(void) {
     addJsonObject("breath_voc_equivalent", breathVoceO, "ppm");
     addJsonObject("temperature", calTempO, "°C");
     addJsonObject("humidity", calHum0, "%");
-    addJsonObject("pressure", pressureO, "KhPa");
+    addJsonObject("pressure", pressureO, "hPa");
     addJsonObject("iaq", iaqO, "score");
     
     serializeJson(jsonDocument, buffer);
