@@ -16,6 +16,7 @@
  */
 
 void setupWiFi();
+void setupDS18B20();
 void setupBME680();
 void checkIaqSensorStatus();
 void errLeds();
@@ -23,7 +24,8 @@ void errLeds();
 void setupRouting();
 void createJson(char *tag, float value, char *unit);
 void addJsonObject(char *tag, float value, char *unit);
-void readSensorData(void * parameter);
+void readDS18B20SensorData(void * parameter);
+void readBME680SensorData(void * parameter);
 
 void getSimpleReadings();
 void getAllReadings();
