@@ -217,9 +217,9 @@ void addJsonObject(char *tag, float value, char *unit) {
 
 void readDS18B20SensorData(void * parameter) {
     for (;;) {
-        Serial.print("Requesting temperatures...");
+        // Serial.print("Requesting temperatures...");
         sensors.requestTemperatures();
-        Serial.println("DONE");
+        // Serial.println("DONE");
 
         tempProbeOneO = sensors.getTempCByIndex(0);
         if(tempProbeOneO == DEVICE_DISCONNECTED_C) 
@@ -227,8 +227,8 @@ void readDS18B20SensorData(void * parameter) {
             Serial.println("Error: Could not read temperature data");
         }
 
-        Serial.print("Temperature for device: ");
-        Serial.println(tempProbeOneO);
+        // Serial.print("Temperature for device: ");
+        // Serial.println(tempProbeOneO);
 
         vTaskDelay(DS18B20_POLLING_FREQUENCY * 1000 / portTICK_PERIOD_MS);
     }
