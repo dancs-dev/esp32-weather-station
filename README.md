@@ -23,6 +23,7 @@ Circuit diagram will be added here when project is further developed.
 
 The following sensors are currently used:
 - `BME680`: Intended for indoor temperature, humidity, pressure, and iaq.
+- `DS18B20`: Waterproof probe version intended for outdoor temperature.
 
 More will be added as project matures.
 
