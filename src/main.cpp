@@ -32,7 +32,7 @@
 // DS18B20 might be acting weirdly if it is not polled quickly - but might also
 // if the sensors are polled at approximately the same time???
 #define DS18B20_POLLING_FREQUENCY 5
-#define BME680_POLLING_FREQUENCY 15
+#define BME680_POLLING_FREQUENCY 0.5
 
 #define ONE_WIRE_BUS 16
 #define TEMPERATURE_PRECISION 9
