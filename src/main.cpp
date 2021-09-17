@@ -25,17 +25,17 @@
 
 #include "main.h"
 
+// You must create a settings.h file as per the README.
+#include "settings.h"
+
 // Number of seconds between the polling of each sensor.
 // DS18B20 might be acting weirdly if it is not polled quickly - but might also
 // if the sensors are polled at approximately the same time???
-#define DS18B20_POLLING_FREQUENCY 1
+#define DS18B20_POLLING_FREQUENCY 5
 #define BME680_POLLING_FREQUENCY 15
 
 #define ONE_WIRE_BUS 16
 #define TEMPERATURE_PRECISION 9
-
-const char* ssid     = "ssid";
-const char* password = "password";
 
 WebServer server(80);
 
@@ -77,9 +77,9 @@ void setupWiFi() {
     Serial.println();
     Serial.println();
     Serial.print("Connecting to ");
-    Serial.println(ssid);
+    Serial.println(SSID);
 
-    WiFi.begin(ssid, password);
+    WiFi.begin(SSID, PASSWORD);
 
     while (WiFi.status() != WL_CONNECTED) {
         delay(500);
@@ -94,11 +94,8 @@ void setupWiFi() {
 
 void setupDS18B20() {
     DeviceAddress tempProbeOneAddress;
-    int numberOfOneWireDevices;
 
     sensors.begin();
-
-    numberOfOneWireDevices = sensors.getDeviceCount();
 
     Serial.print("Locating devices...");
 

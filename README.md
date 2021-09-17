@@ -11,7 +11,10 @@
 
 ## Setup
 
-1. You must add in your WiFi details to `ssid` and `password` in `main.cpp`.
+1. You must create a file called `settings.h` in `/include`.
+1. You must create the following definitions:
+    - `#define SSID "ssid"`
+    - `#define PASSWORD "password"`
 1. You can find the IP address your ESP32 was assigned by opening the Serial
    Monitor and reseting your ESP32 (may be the `EN` button).
 
