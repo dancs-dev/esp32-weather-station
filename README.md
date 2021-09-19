@@ -12,9 +12,10 @@
 ## Setup
 
 1. You must create a file called `settings.h` in `/include`.
-1. You must create the following definitions:
+1. You must create the following definitions, filling in your details:
     - `#define SSID "ssid"`
     - `#define PASSWORD "password"`
+    - `#define PORT 2701`
 1. You can find the IP address your ESP32 was assigned by opening the Serial
    Monitor and reseting your ESP32 (may be the `EN` button).
 

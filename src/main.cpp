@@ -37,7 +37,7 @@
 #define ONE_WIRE_BUS 16
 #define TEMPERATURE_PRECISION 9
 
-WebServer server(80);
+WebServer server(PORT);
 
 Bsec iaqSensor;
 
