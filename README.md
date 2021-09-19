@@ -12,11 +12,22 @@
 ## Setup
 
 1. You must create a file called `settings.h` in `/include`.
-1. You must create the following definitions:
+1. You must create the following definitions, filling in your details:
     - `#define SSID "ssid"`
     - `#define PASSWORD "password"`
+    - `#define PORT 80`
 1. You can find the IP address your ESP32 was assigned by opening the Serial
    Monitor and reseting your ESP32 (may be the `EN` button).
+1. To ensure your weather station starts on the same local IP address each time,
+   you can add a rule to the DHCP server of your router for the particular MAC
+   address and desired IP address.
+1. There are numerous configuration options in `main.cpp`, including reading
+   offsets and pin numbers. The values there are the values that worked best for
+   me.
+
+Note: the BME680 sensor [must be read every 3 seconds +/- 50%](
+   https://community.bosch-sensortec.com/t5/MEMS-sensors-forum/Bme680-bsec-iaq-accuracy-is-always-0/m-p/22532/highlight/true#M6545).
+   Therefore the polling frequency should probably remain quite low.
 
 ## Circuit
 

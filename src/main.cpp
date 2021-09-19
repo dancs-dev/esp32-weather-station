@@ -35,9 +35,14 @@
 #define BME680_POLLING_FREQUENCY 0.5
 
 #define ONE_WIRE_BUS 16
-#define TEMPERATURE_PRECISION 9
+#define DS18B20_TEMPERATURE_PRECISION 9
 
-WebServer server(80);
+#define DS18B20_TEMPERATURE_OFFSET 0.5
+#define BME680_TEMPERATURE_OFFSET -0.5
+#define BME680_HUMIDITY_OFFSET 0.0
+#define BME680_PRESSURE_OFFSET 0.0
+
+WebServer server(PORT);
 
 Bsec iaqSensor;
 
@@ -113,9 +118,9 @@ void setupDS18B20() {
         Serial.println();
 
         Serial.print("Setting resolution to ");
-        Serial.println(TEMPERATURE_PRECISION, DEC);
+        Serial.println(DS18B20_TEMPERATURE_PRECISION, DEC);
 
-        sensors.setResolution(tempProbeOneAddress, TEMPERATURE_PRECISION);
+        sensors.setResolution(tempProbeOneAddress, DS18B20_TEMPERATURE_PRECISION);
         
         Serial.print("Resolution actually set to: ");
         Serial.print(sensors.getResolution(tempProbeOneAddress), DEC); 
@@ -200,7 +205,7 @@ void setupRouting() {
     server.begin();
 }
 
-void createJson(char *tag, float value, char *unit) {
+void createJson(const char *tag, float value, const char *unit) {
     jsonDocument.clear();
     jsonDocument["type"] = tag;
     jsonDocument["value"] = value;
@@ -208,7 +213,7 @@ void createJson(char *tag, float value, char *unit) {
     serializeJson(jsonDocument, buffer);
 }
 
-void addJsonObject(char *tag, float value, char *unit) {
+void addJsonObject(const char *tag, float value, const char *unit) {
     JsonObject obj = jsonDocument.createNestedObject();
     obj["type"] = tag;
     obj["value"] = value;
@@ -221,7 +226,7 @@ void readDS18B20SensorData(void * parameter) {
         sensors.requestTemperatures();
         // Serial.println("DONE");
 
-        tempProbeOneO = sensors.getTempCByIndex(0);
+        tempProbeOneO = sensors.getTempCByIndex(0) + DS18B20_TEMPERATURE_OFFSET;
         if(tempProbeOneO == DEVICE_DISCONNECTED_C) 
         {
             Serial.println("Error: Could not read temperature data");
@@ -243,7 +248,7 @@ void readBME680SensorData(void * parameter) {
         }
 
         rawTempO = iaqSensor.rawTemperature;
-        pressureO = iaqSensor.pressure / 100.0;
+        pressureO = (iaqSensor.pressure / 100.0) + BME680_PRESSURE_OFFSET;
         rawHumidityO = iaqSensor.rawHumidity;
         gasO = iaqSensor.gasResistance;
         iaqO = iaqSensor.iaq;
@@ -251,8 +256,8 @@ void readBME680SensorData(void * parameter) {
         staticIaqO = iaqSensor.staticIaq;
         co2eO = iaqSensor.co2Equivalent;
         breathVoceO = iaqSensor.breathVocEquivalent;
-        calTempO = iaqSensor.temperature;
-        calHum0 = iaqSensor.humidity;
+        calTempO = iaqSensor.temperature + BME680_TEMPERATURE_OFFSET;
+        calHum0 = iaqSensor.humidity + BME680_HUMIDITY_OFFSET;
 
         vTaskDelay(BME680_POLLING_FREQUENCY * 1000 / portTICK_PERIOD_MS);
     }
