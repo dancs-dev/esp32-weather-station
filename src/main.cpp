@@ -205,7 +205,7 @@ void setupRouting() {
     server.begin();
 }
 
-void createJson(char *tag, float value, char *unit) {
+void createJson(const char *tag, float value, const char *unit) {
     jsonDocument.clear();
     jsonDocument["type"] = tag;
     jsonDocument["value"] = value;
@@ -213,7 +213,7 @@ void createJson(char *tag, float value, char *unit) {
     serializeJson(jsonDocument, buffer);
 }
 
-void addJsonObject(char *tag, float value, char *unit) {
+void addJsonObject(const char *tag, float value, const char *unit) {
     JsonObject obj = jsonDocument.createNestedObject();
     obj["type"] = tag;
     obj["value"] = value;

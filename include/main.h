@@ -22,8 +22,8 @@ void checkIaqSensorStatus();
 void errLeds();
 
 void setupRouting();
-void createJson(char *tag, float value, char *unit);
-void addJsonObject(char *tag, float value, char *unit);
+void createJson(const char *tag, float value, const char *unit);
+void addJsonObject(const char *tag, float value, const char *unit);
 void readDS18B20SensorData(void * parameter);
 void readBME680SensorData(void * parameter);
 
