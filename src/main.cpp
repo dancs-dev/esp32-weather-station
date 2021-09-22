@@ -199,6 +199,7 @@ void errLeds() {
 }
 
 void setupRouting() {
+    server.enableCORS();
     server.on("/simple", getSimpleReadings);
     server.on("/all", getAllReadings);
 
