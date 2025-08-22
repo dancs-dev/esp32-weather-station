@@ -22,7 +22,6 @@
 #include <bsec.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
-
 #include "main.h"
 
 // You must create a settings.h file as per the README.
@@ -31,26 +30,30 @@
 // Number of seconds between the polling of each sensor.
 // DS18B20 might be acting weirdly if it is not polled quickly - but might also
 // if the sensors are polled at approximately the same time???
-#define DS18B20_POLLING_FREQUENCY 5
-#define BME680_POLLING_FREQUENCY 0.5
+#define DS18B20_POLLING_FREQUENCY 30
+#define BME680_POLLING_FREQUENCY 3
 
 #define ONE_WIRE_BUS 16
-#define DS18B20_TEMPERATURE_PRECISION 9
+#define DS18B20_TEMPERATURE_PRECISION 10
 
-#define DS18B20_TEMPERATURE_OFFSET 0.5
-#define BME680_TEMPERATURE_OFFSET -0.5
-#define BME680_HUMIDITY_OFFSET 0.0
+#define DS18B20_TEMPERATURE_OFFSET 0.1
+#define BME680_TEMPERATURE_OFFSET -0.9
+#define BME680_HUMIDITY_OFFSET 8.0
 #define BME680_PRESSURE_OFFSET 0.0
 
 WebServer server(PORT);
 
 Bsec iaqSensor;
+const uint8_t bsec_config_iaq[] = {
+#include "bsec_iaq.txt"
+};
+
 
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
-StaticJsonDocument<2500> jsonDocument;
-char buffer[2500];
+StaticJsonDocument<1024> jsonDocument;
+char buffer[1024];
 
 String output;
 
@@ -63,9 +66,12 @@ float rawTempO, pressureO, rawHumidityO, gasO, iaqO, staticIaqO, co2eO,
     breathVoceO, calTempO, calHum0;
 int iaqAccuracyO;
 
+SemaphoreHandle_t sensorDataMutex;
+
 void setup() {
     Serial.begin(115200);
-    
+    sensorDataMutex = xSemaphoreCreateMutex();
+
     setupWiFi();
     setupBME680();
     setupDS18B20();
@@ -137,6 +143,8 @@ void setupDS18B20() {
 void setupBME680() {
     SPI.begin();
     iaqSensor.begin(5, SPI);
+    checkIaqSensorStatus();
+    iaqSensor.setConfig(bsec_config_iaq);
     output = "\nBSEC library version " + String(iaqSensor.version.major) + "." +
         String(iaqSensor.version.minor) + "." +
         String(iaqSensor.version.major_bugfix) + "." +
@@ -168,27 +176,29 @@ void setupBME680() {
 }
 
 void checkIaqSensorStatus() {
-    if (iaqSensor.status != BSEC_OK) {
-        if (iaqSensor.status < BSEC_OK) {
-            output = "BSEC error code : " + String(iaqSensor.status);
+    if (iaqSensor.bsecStatus != BSEC_OK) {
+        if (iaqSensor.bsecStatus < BSEC_OK) {
+            output = "BSEC error code : " + String(iaqSensor.bsecStatus);
             Serial.println(output);
             for (;;)
                 // Halt and display error leds in case of failure
-                errLeds(); 
+                errLeds();
+                vTaskDelay(1000 / portTICK_PERIOD_MS);
         } else {
-            output = "BSEC warning code : " + String(iaqSensor.status);
+            output = "BSEC warning code : " + String(iaqSensor.bsecStatus);
             Serial.println(output);
         }
     }
 
-    if (iaqSensor.bme680Status != BME680_OK) {
-        if (iaqSensor.bme680Status < BME680_OK) {
-        output = "BME680 error code : " + String(iaqSensor.bme680Status);
+    if (iaqSensor.bme68xStatus != BME68X_OK) {
+        if (iaqSensor.bme68xStatus < BME68X_OK) {
+        output = "BME680 error code : " + String(iaqSensor.bme68xStatus);
         Serial.println(output);
         for (;;)
             errLeds();
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
         } else {
-            output = "BME680 warning code : " + String(iaqSensor.bme680Status);
+            output = "BME680 warning code : " + String(iaqSensor.bme68xStatus);
             Serial.println(output);
         }
     }
@@ -215,26 +225,22 @@ void createJson(const char *tag, float value, const char *unit) {
 }
 
 void addJsonObject(const char *tag, float value, const char *unit) {
-    JsonObject obj = jsonDocument.createNestedObject();
-    obj["type"] = tag;
+    JsonObject obj = jsonDocument.createNestedObject(tag);
     obj["value"] = value;
     obj["unit"] = unit;
 }
 
 void readDS18B20SensorData(void * parameter) {
     for (;;) {
-        // Serial.print("Requesting temperatures...");
         sensors.requestTemperatures();
-        // Serial.println("DONE");
-
-        tempProbeOneO = sensors.getTempCByIndex(0) + DS18B20_TEMPERATURE_OFFSET;
+        if (xSemaphoreTake(sensorDataMutex, (TickType_t)10) == pdTRUE) {
+            tempProbeOneO = sensors.getTempCByIndex(0) + DS18B20_TEMPERATURE_OFFSET;
+            xSemaphoreGive(sensorDataMutex);
+        }
         if(tempProbeOneO == DEVICE_DISCONNECTED_C) 
         {
             Serial.println("Error: Could not read temperature data");
         }
-
-        // Serial.print("Temperature for device: ");
-        // Serial.println(tempProbeOneO);
 
         vTaskDelay(DS18B20_POLLING_FREQUENCY * 1000 / portTICK_PERIOD_MS);
     }
@@ -245,20 +251,23 @@ void readBME680SensorData(void * parameter) {
         // If no data is available, loop until it is.
         while (! iaqSensor.run()) {
             checkIaqSensorStatus();
-            delay(100);
+            vTaskDelay(100 / portTICK_PERIOD_MS);
         }
 
-        rawTempO = iaqSensor.rawTemperature;
-        pressureO = (iaqSensor.pressure / 100.0) + BME680_PRESSURE_OFFSET;
-        rawHumidityO = iaqSensor.rawHumidity;
-        gasO = iaqSensor.gasResistance;
-        iaqO = iaqSensor.iaq;
-        iaqAccuracyO = iaqSensor.iaqAccuracy;
-        staticIaqO = iaqSensor.staticIaq;
-        co2eO = iaqSensor.co2Equivalent;
-        breathVoceO = iaqSensor.breathVocEquivalent;
-        calTempO = iaqSensor.temperature + BME680_TEMPERATURE_OFFSET;
-        calHum0 = iaqSensor.humidity + BME680_HUMIDITY_OFFSET;
+        if (xSemaphoreTake(sensorDataMutex, (TickType_t)10) == pdTRUE) {
+            rawTempO = iaqSensor.rawTemperature;
+            pressureO = (iaqSensor.pressure / 100.0) + BME680_PRESSURE_OFFSET;
+            rawHumidityO = iaqSensor.rawHumidity;
+            gasO = iaqSensor.gasResistance;
+            iaqO = iaqSensor.iaq;
+            iaqAccuracyO = iaqSensor.iaqAccuracy;
+            staticIaqO = iaqSensor.staticIaq;
+            co2eO = iaqSensor.co2Equivalent;
+            breathVoceO = iaqSensor.breathVocEquivalent;
+            calTempO = iaqSensor.temperature + BME680_TEMPERATURE_OFFSET;
+            calHum0 = iaqSensor.humidity + BME680_HUMIDITY_OFFSET;
+            xSemaphoreGive(sensorDataMutex);
+        }
 
         vTaskDelay(BME680_POLLING_FREQUENCY * 1000 / portTICK_PERIOD_MS);
     }
@@ -267,11 +276,14 @@ void readBME680SensorData(void * parameter) {
 void getSimpleReadings() {
     jsonDocument.clear();
     
-    addJsonObject("indoor_temperature", calTempO, "°C");
-    addJsonObject("outdoor_temperature", tempProbeOneO, "°C");
-    addJsonObject("humidity", calHum0, "%");
-    addJsonObject("pressure", pressureO, "hPa");
-    addJsonObject("iaq", iaqO, "score");
+    if (xSemaphoreTake(sensorDataMutex, (TickType_t)10) == pdTRUE) {
+        addJsonObject("indoor_temperature", calTempO, "°C");
+        addJsonObject("outdoor_temperature", tempProbeOneO, "°C");
+        addJsonObject("humidity", calHum0, "%");
+        addJsonObject("pressure", pressureO, "hPa");
+        addJsonObject("iaq", iaqO, "score");
+        xSemaphoreGive(sensorDataMutex);
+    }
     
     serializeJson(jsonDocument, buffer);
     server.send(200, "application/json", buffer);
@@ -280,19 +292,22 @@ void getSimpleReadings() {
 
 void getAllReadings() {
     jsonDocument.clear();
+    if (xSemaphoreTake(sensorDataMutex, (TickType_t)10) == pdTRUE) {
 
-    addJsonObject("raw_temperature", rawTempO, "°C");
-    addJsonObject("raw_humidity", rawHumidityO, "%");
-    addJsonObject("gas_resistance", gasO, "Ohm");
-    addJsonObject("iaq_accuracy", iaqAccuracyO, "0-3");
-    addJsonObject("static_iaq", staticIaqO, "score");
-    addJsonObject("co2_equivalent", co2eO, "ppm");
-    addJsonObject("breath_voc_equivalent", breathVoceO, "ppm");
-    addJsonObject("indoor_temperature", calTempO, "°C");
-    addJsonObject("outdoor_temperature", tempProbeOneO, "°C");
-    addJsonObject("humidity", calHum0, "%");
-    addJsonObject("pressure", pressureO, "hPa");
-    addJsonObject("iaq", iaqO, "score");
+        addJsonObject("raw_temperature", rawTempO, "°C");
+        addJsonObject("raw_humidity", rawHumidityO, "%");
+        addJsonObject("gas_resistance", gasO, "Ohm");
+        addJsonObject("iaq_accuracy", iaqAccuracyO, "0-3");
+        addJsonObject("static_iaq", staticIaqO, "score");
+        addJsonObject("co2_equivalent", co2eO, "ppm");
+        addJsonObject("breath_voc_equivalent", breathVoceO, "ppm");
+        addJsonObject("indoor_temperature", calTempO, "°C");
+        addJsonObject("outdoor_temperature", tempProbeOneO, "°C");
+        addJsonObject("humidity", calHum0, "%");
+        addJsonObject("pressure", pressureO, "hPa");
+        addJsonObject("iaq", iaqO, "score");
+        xSemaphoreGive(sensorDataMutex);
+    }
 
     serializeJson(jsonDocument, buffer);
     server.send(200, "application/json", buffer);
@@ -304,18 +319,21 @@ void setupSensorDataPoller() {
     xTaskCreate(
         readBME680SensorData,
         "Read BME680 sensor data",
-        10000,
+        4096,
         NULL,
         1,
         NULL
     );
+
+    // A little wait between tasks.
+    delay(1500);
 
     // The DB18B20 task seems to need a higher priority to avoid weird bugs when
     // reading the sensor data.
     xTaskCreate(
         readDS18B20SensorData,
         "Read DS18B20 sensor data",
-        10000,
+        4096,
         NULL,
         2,
         NULL
