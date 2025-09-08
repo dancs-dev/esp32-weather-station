@@ -1,20 +1,22 @@
 /*
- WiFi Web Server Weather Station header file.
+ WiFi Web Air Quality Monitor header file.
 
- A simple web server that displays readings from the weather
- station sensors.
+ A Web server that displays readings from the AQN sensors.
 
  These currently include the:
  BME 680 (indoor temperature, humidity, pressure, air quality).
+ DS18B20 (outdoor temperature),
 
  This example is written for a network using WPA encryption. For
  WEP or WPA, change the Wifi.begin() call accordingly.
 
  Circuit:
- * BME 680 SDA -> D21, SCL -> D22
- 
+ BME 680 SDA -> D21, SCL -> D22
+ DS18B20 DAT -> RX2
  */
 
+void setup();
+void loop();
 void setupWiFi();
 void setupDS18B20();
 void setupBME680();
@@ -23,10 +25,9 @@ void errLeds();
 void bme680Callback(const bme68xData data, const bsecOutputs outputs, Bsec2 bsec);
 
 void setupRouting();
-void createJson(const char *tag, float value, const char *unit);
 void addJsonObject(const char *tag, String value, const char *unit);
-void readDS18B20SensorData(void * parameter);
-void readBME680SensorData(void * parameter);
+void readDS18B20SensorData(void *parameter);
+void readBME680SensorData(void *parameter);
 
 void getSimpleReadings();
 void getAllReadings();
