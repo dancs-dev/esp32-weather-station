@@ -339,6 +339,18 @@ void readBME680SensorData(void *parameter)
     }
 }
 
+void checkWiFiConnection(void *parameter)
+{
+    for (;;)
+    {
+        if (WiFi.status() != WL_CONNECTED)
+        {
+            setupWiFi();
+        }
+        vTaskDelay(10 * 1000 / portTICK_PERIOD_MS);
+    }
+}
+
 void getSimpleReadings()
 {
     jsonDocument.clear();
@@ -407,5 +419,15 @@ void setupSensorDataPoller()
         4096,
         NULL,
         2,
+        NULL);
+
+    delay(1500);
+
+    xTaskCreate(
+        checkWiFiConnection,
+        "Reconnect to WiFi if connection drops",
+        4096,
+        NULL,
+        1,
         NULL);
 }

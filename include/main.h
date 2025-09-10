@@ -28,6 +28,7 @@ void setupRouting();
 void addJsonObject(const char *tag, String value, const char *unit);
 void readDS18B20SensorData(void *parameter);
 void readBME680SensorData(void *parameter);
+void checkWiFiConnection(void *parameter);
 
 void getSimpleReadings();
 void getAllReadings();
