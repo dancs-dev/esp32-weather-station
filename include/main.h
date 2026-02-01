@@ -17,7 +17,7 @@
 
 void setup();
 void loop();
-void setupWiFi();
+bool setupWiFi();
 void setupDS18B20();
 void setupBME680();
 void checkIaqSensorStatus(Bsec2 bsec);
@@ -25,7 +25,7 @@ void errLeds();
 void bme680Callback(const bme68xData data, const bsecOutputs outputs, Bsec2 bsec);
 
 void setupRouting();
-void addJsonObject(const char *tag, String value, const char *unit);
+void addJsonObject(const char *tag, const char *value, const char *unit);
 void readDS18B20SensorData(void *parameter);
 void readBME680SensorData(void *parameter);
 void checkWiFiConnection(void *parameter);

@@ -19,10 +19,18 @@
 #include <bsec2.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <esp_task_wdt.h>
 #include "main.h"
 
 // You must create a settings.h file as per the README.
 #include "settings.h"
+
+// Device will reset if unresponsive for this long.
+#define WDT_TIMEOUT_S 30
+
+// WiFi connection settings.
+#define WIFI_CONNECT_TIMEOUT_MS 30000
+#define WIFI_RECONNECT_INTERVAL_MS 60000
 
 // Number of seconds between the polling of each sensor.
 // DS18B20 might be acting weirdly if it is not polled quickly - but might also
@@ -55,15 +63,24 @@ DallasTemperature sensors(&oneWire);
 StaticJsonDocument<1024> jsonDocument;
 char buffer[1024];
 
-String output;
-
-// Sensor readings to be stored as global variables.
+// Sensor readings stored as char arrays to avoid heap fragmentation.
 // DS18B20
-String tempProbeOneO;
+char tempProbeOneO[16] = "";
 
 // BME680
-String rawTempO, pressureO, rawHumidityO, gasO, iaqO, staticIaqO, co2eO,
-    breathVoceO, calTempO, calHum0, stabilizationStatus0, runInStatus0, iaqAccuracyO;
+char rawTempO[16] = "";
+char pressureO[16] = "";
+char rawHumidityO[16] = "";
+char gasO[16] = "";
+char iaqO[16] = "";
+char staticIaqO[16] = "";
+char co2eO[16] = "";
+char breathVoceO[16] = "";
+char calTempO[16] = "";
+char calHum0[16] = "";
+char stabilizationStatus0[16] = "";
+char runInStatus0[16] = "";
+char iaqAccuracyO[16] = "";
 
 SemaphoreHandle_t sensorDataMutex;
 
@@ -71,6 +88,9 @@ void setup()
 {
     Serial.begin(115200);
     sensorDataMutex = xSemaphoreCreateMutex();
+
+    esp_task_wdt_init(WDT_TIMEOUT_S, true);
+    esp_task_wdt_add(NULL);
 
     setupWiFi();
     setupBME680();
@@ -82,10 +102,12 @@ void setup()
 
 void loop()
 {
+    esp_task_wdt_reset();
     server.handleClient();
+    yield();
 }
 
-void setupWiFi()
+bool setupWiFi()
 {
     Serial.println();
     Serial.println();
@@ -94,8 +116,16 @@ void setupWiFi()
 
     WiFi.begin(SSID, PASSWORD);
 
+    unsigned long startAttemptTime = millis();
+
     while (WiFi.status() != WL_CONNECTED)
     {
+        if (millis() - startAttemptTime >= WIFI_CONNECT_TIMEOUT_MS)
+        {
+            Serial.println("");
+            Serial.println("WiFi connection timeout.");
+            return false;
+        }
         delay(500);
         Serial.print(".");
     }
@@ -104,6 +134,7 @@ void setupWiFi()
     Serial.println("WiFi connected.");
     Serial.println("IP address: ");
     Serial.println(WiFi.localIP());
+    return true;
 }
 
 void setupDS18B20()
@@ -248,41 +279,41 @@ void bme680Callback(const bme68xData data, const bsecOutputs outputs, Bsec2 bsec
             switch (output.sensor_id)
             {
             case BSEC_OUTPUT_IAQ:
-                iaqO = String(output.signal);
-                iaqAccuracyO = String((int)output.accuracy);
+                dtostrf(output.signal, 1, 2, iaqO);
+                snprintf(iaqAccuracyO, sizeof(iaqAccuracyO), "%d", (int)output.accuracy);
                 break;
             case BSEC_OUTPUT_RAW_TEMPERATURE:
-                rawTempO = String(output.signal);
+                dtostrf(output.signal, 1, 2, rawTempO);
                 break;
             case BSEC_OUTPUT_RAW_PRESSURE:
-                pressureO = String(output.signal + BME680_PRESSURE_OFFSET);
+                dtostrf(output.signal + BME680_PRESSURE_OFFSET, 1, 2, pressureO);
                 break;
             case BSEC_OUTPUT_RAW_HUMIDITY:
-                rawHumidityO = String(output.signal);
+                dtostrf(output.signal, 1, 2, rawHumidityO);
                 break;
             case BSEC_OUTPUT_RAW_GAS:
-                gasO = String(output.signal);
+                dtostrf(output.signal, 1, 2, gasO);
                 break;
             case BSEC_OUTPUT_STABILIZATION_STATUS:
-                stabilizationStatus0 = String(output.signal);
+                dtostrf(output.signal, 1, 0, stabilizationStatus0);
                 break;
             case BSEC_OUTPUT_RUN_IN_STATUS:
-                runInStatus0 = String(output.signal);
+                dtostrf(output.signal, 1, 0, runInStatus0);
                 break;
             case BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE:
-                calTempO = String(output.signal + BME680_TEMPERATURE_OFFSET);
+                dtostrf(output.signal + BME680_TEMPERATURE_OFFSET, 1, 2, calTempO);
                 break;
             case BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY:
-                calHum0 = String(output.signal + BME680_HUMIDITY_OFFSET);
+                dtostrf(output.signal + BME680_HUMIDITY_OFFSET, 1, 2, calHum0);
                 break;
             case BSEC_OUTPUT_STATIC_IAQ:
-                staticIaqO = String(output.signal);
+                dtostrf(output.signal, 1, 2, staticIaqO);
                 break;
             case BSEC_OUTPUT_CO2_EQUIVALENT:
-                co2eO = String(output.signal);
+                dtostrf(output.signal, 1, 2, co2eO);
                 break;
             case BSEC_OUTPUT_BREATH_VOC_EQUIVALENT:
-                breathVoceO = String(output.signal);
+                dtostrf(output.signal, 1, 2, breathVoceO);
                 break;
             default:
                 break;
@@ -301,7 +332,7 @@ void setupRouting()
     server.begin();
 }
 
-void addJsonObject(const char *tag, String value, const char *unit)
+void addJsonObject(const char *tag, const char *value, const char *unit)
 {
     JsonObject obj = jsonDocument.createNestedObject(tag);
     obj["value"] = value;
@@ -313,14 +344,16 @@ void readDS18B20SensorData(void *parameter)
     for (;;)
     {
         sensors.requestTemperatures();
-        if (xSemaphoreTake(sensorDataMutex, (TickType_t)10) == pdTRUE)
-        {
-            tempProbeOneO = sensors.getTempCByIndex(0) + DS18B20_TEMPERATURE_OFFSET;
-            xSemaphoreGive(sensorDataMutex);
-        }
-        if (tempProbeOneO.toInt() == DEVICE_DISCONNECTED_C)
+        float temp = sensors.getTempCByIndex(0);
+
+        if (temp == DEVICE_DISCONNECTED_C)
         {
             Serial.println("Error: Could not read temperature data");
+        }
+        else if (xSemaphoreTake(sensorDataMutex, (TickType_t)10) == pdTRUE)
+        {
+            dtostrf(temp + DS18B20_TEMPERATURE_OFFSET, 1, 2, tempProbeOneO);
+            xSemaphoreGive(sensorDataMutex);
         }
 
         vTaskDelay(DS18B20_POLLING_FREQUENCY * 1000 / portTICK_PERIOD_MS);
@@ -345,9 +378,14 @@ void checkWiFiConnection(void *parameter)
     {
         if (WiFi.status() != WL_CONNECTED)
         {
-            setupWiFi();
+            Serial.println("WiFi disconnected, attempting to reconnect...");
+            WiFi.disconnect();
+            if (!setupWiFi())
+            {
+                Serial.println("Reconnection failed, will retry later.");
+            }
         }
-        vTaskDelay(10 * 1000 / portTICK_PERIOD_MS);
+        vTaskDelay(WIFI_RECONNECT_INTERVAL_MS / portTICK_PERIOD_MS);
     }
 }
 
